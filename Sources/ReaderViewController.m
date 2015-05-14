@@ -79,6 +79,8 @@
 
 #define TAP_AREA_SIZE 48.0f
 
+#define VERTICAL_PAGING 1
+
 #pragma mark - Properties
 
 @synthesize delegate;
@@ -87,9 +89,19 @@
 
 - (void)updateContentSize:(UIScrollView *)scrollView
 {
-	CGFloat contentHeight = scrollView.bounds.size.height; // Height
-
-	CGFloat contentWidth = (scrollView.bounds.size.width * maximumPage);
+    CGFloat contentHeight;
+    
+    CGFloat contentWidth;
+    
+    if (VERTICAL_PAGING) {
+        contentHeight = (scrollView.bounds.size.height * maximumPage); // Vertical scrolling
+        
+        contentWidth = scrollView.bounds.size.width;
+    } else {
+        contentHeight = scrollView.bounds.size.height; // Horizontal scrolling
+        
+        contentWidth = (scrollView.bounds.size.width * maximumPage);
+    }
 
 	scrollView.contentSize = CGSizeMake(contentWidth, contentHeight);
 }
@@ -105,7 +117,11 @@
 
 			CGRect viewRect = CGRectZero; viewRect.size = scrollView.bounds.size;
 
-			viewRect.origin.x = (viewRect.size.width * (page - 1)); // Update X
+            if (VERTICAL_PAGING) {
+                viewRect.origin.y = (viewRect.size.height * (page - 1)); // Update Y
+            } else {
+                viewRect.origin.x = (viewRect.size.width * (page - 1)); // Update X
+            }
 
 			contentView.frame = CGRectInset(viewRect, scrollViewOutset, 0.0f);
 		}
@@ -113,7 +129,13 @@
 
 	NSInteger page = currentPage; // Update scroll view offset to current page
 
-	CGPoint contentOffset = CGPointMake((scrollView.bounds.size.width * (page - 1)), 0.0f);
+	CGPoint contentOffset;
+    
+    if (VERTICAL_PAGING) {
+        contentOffset = CGPointMake(0.0f, (scrollView.bounds.size.height * (page - 1)));
+    } else {
+        contentOffset = CGPointMake((scrollView.bounds.size.width * (page - 1)), 0.0f);
+    }
 
 	if (CGPointEqualToPoint(scrollView.contentOffset, contentOffset) == false) // Update
 	{
@@ -129,7 +151,11 @@
 {
 	CGRect viewRect = CGRectZero; viewRect.size = scrollView.bounds.size;
 
-	viewRect.origin.x = (viewRect.size.width * (page - 1)); viewRect = CGRectInset(viewRect, scrollViewOutset, 0.0f);
+    if (VERTICAL_PAGING) {
+        viewRect.origin.y = (viewRect.size.height * (page - 1)); viewRect = CGRectInset(viewRect, 0.0f, scrollViewOutset);
+    } else {
+        viewRect.origin.x = (viewRect.size.width * (page - 1)); viewRect = CGRectInset(viewRect, scrollViewOutset, 0.0f);
+    }
 
 	NSURL *fileURL = document.fileURL; NSString *phrase = document.password; NSString *guid = document.guid; // Document properties
 
@@ -142,13 +168,35 @@
 
 - (void)layoutContentViews:(UIScrollView *)scrollView
 {
-	CGFloat viewWidth = scrollView.bounds.size.width; // View width
+    CGFloat viewWidth;
+    
+    CGFloat viewHeight; // View height
 
-	CGFloat contentOffsetX = scrollView.contentOffset.x; // Content offset X
+    CGFloat contentOffsetX; // Content offset X
+    
+    CGFloat contentOffsetY; // Content offset Y
 
-	NSInteger pageB = ((contentOffsetX + viewWidth - 1.0f) / viewWidth); // Pages
+    NSInteger pageB; // Pages
 
-	NSInteger pageA = (contentOffsetX / viewWidth); pageB += 2; // Add extra pages
+    NSInteger pageA; // Add extra pages
+    
+    if (VERTICAL_PAGING) {
+        viewHeight = scrollView.bounds.size.height;
+        
+        contentOffsetY = scrollView.contentOffset.y;
+        
+        pageB = ((contentOffsetY + viewHeight - 1.0f) / viewHeight);
+        
+        pageA = (contentOffsetY / viewHeight); pageB += 2;
+    } else {
+        viewWidth = scrollView.bounds.size.width;
+        
+        contentOffsetX = scrollView.contentOffset.x;
+        
+        pageB = ((contentOffsetX + viewWidth - 1.0f) / viewWidth);
+        
+        pageA = (contentOffsetX / viewWidth); pageB += 2;
+    }
 
 	if (pageA < minimumPage) pageA = minimumPage; if (pageB > maximumPage) pageB = maximumPage;
 
@@ -204,12 +252,30 @@
 
 - (void)handleScrollViewDidEnd:(UIScrollView *)scrollView
 {
-	CGFloat viewWidth = scrollView.bounds.size.width; // Scroll view width
+    CGFloat viewWidth; // Scroll view width
+    
+    CGFloat viewHeight; // Scroll view height
 
-	CGFloat contentOffsetX = scrollView.contentOffset.x; // Content offset X
+	CGFloat contentOffsetX; // Content offset X
+    
+    CGFloat contentOffsetY; // Content offset Y
 
-	NSInteger page = (contentOffsetX / viewWidth); page++; // Page number
+	NSInteger page; // Page number
 
+    if (VERTICAL_PAGING) {
+        viewHeight = scrollView.bounds.size.height;
+        
+        contentOffsetY = scrollView.contentOffset.y;
+        
+        page = (contentOffsetY / viewHeight); page++;
+    } else {
+        viewWidth = scrollView.bounds.size.width;
+        
+        contentOffsetX = scrollView.contentOffset.x;
+        
+        page = (contentOffsetX / viewWidth); page++;
+    }
+    
 	if (page != currentPage) // Only if on different page
 	{
 		currentPage = page; document.pageNumber = [NSNumber numberWithInteger:page];
@@ -235,8 +301,14 @@
 
 		currentPage = page; document.pageNumber = [NSNumber numberWithInteger:page];
 
-		CGPoint contentOffset = CGPointMake((theScrollView.bounds.size.width * (page - 1)), 0.0f);
+		CGPoint contentOffset;
 
+        if (VERTICAL_PAGING) {
+            contentOffset = CGPointMake(0.0f, (theScrollView.bounds.size.height * (page - 1)));
+        } else {
+            contentOffset = CGPointMake((theScrollView.bounds.size.width * (page - 1)), 0.0f);
+        }
+        
 		if (CGPointEqualToPoint(theScrollView.contentOffset, contentOffset) == true)
 			[self layoutContentViews:theScrollView];
 		else
@@ -530,7 +602,11 @@
 	{
 		CGPoint contentOffset = theScrollView.contentOffset; // Offset
 
-		contentOffset.x -= theScrollView.bounds.size.width; // View X--
+        if (VERTICAL_PAGING) {
+            contentOffset.y -= theScrollView.bounds.size.height; // View Y--
+        } else {
+            contentOffset.x -= theScrollView.bounds.size.width; // View X--
+        }
 
 		[theScrollView setContentOffset:contentOffset animated:YES];
 	}
@@ -542,7 +618,11 @@
 	{
 		CGPoint contentOffset = theScrollView.contentOffset; // Offset
 
-		contentOffset.x += theScrollView.bounds.size.width; // View X++
+        if (VERTICAL_PAGING) {
+            contentOffset.y += theScrollView.bounds.size.height; // View Y++
+        } else {
+            contentOffset.x += theScrollView.bounds.size.width; // View X++
+        }
 
 		[theScrollView setContentOffset:contentOffset animated:YES];
 	}
@@ -556,7 +636,13 @@
 
 		CGPoint point = [recognizer locationInView:recognizer.view]; // Point
 
-		CGRect areaRect = CGRectInset(viewRect, TAP_AREA_SIZE, 0.0f); // Area rect
+		CGRect areaRect; // Area rect
+        
+        if (VERTICAL_PAGING) {
+            areaRect = CGRectInset(viewRect, 0.0f, TAP_AREA_SIZE);
+        } else {
+            areaRect = CGRectInset(viewRect, TAP_AREA_SIZE, 0.0f);
+        }
 
 		if (CGRectContainsPoint(areaRect, point) == true) // Single tap is inside area
 		{
@@ -616,16 +702,27 @@
 		}
 
 		CGRect nextPageRect = viewRect;
-		nextPageRect.size.width = TAP_AREA_SIZE;
-		nextPageRect.origin.x = (viewRect.size.width - TAP_AREA_SIZE);
+        
+        CGRect prevPageRect = viewRect;
+        
+        if (VERTICAL_PAGING) {
+            // Bottom and Top areas
+            nextPageRect.size.height = TAP_AREA_SIZE;
+            nextPageRect.origin.y = (viewRect.size.height - TAP_AREA_SIZE);
+            
+            prevPageRect.size.height = TAP_AREA_SIZE;
+        } else {
+            // Right and Left areas
+            nextPageRect.size.width = TAP_AREA_SIZE;
+            nextPageRect.origin.x = (viewRect.size.width - TAP_AREA_SIZE);
+            
+            prevPageRect.size.width = TAP_AREA_SIZE;
+        }
 
 		if (CGRectContainsPoint(nextPageRect, point) == true) // page++
 		{
 			[self incrementPageNumber]; return;
 		}
-
-		CGRect prevPageRect = viewRect;
-		prevPageRect.size.width = TAP_AREA_SIZE;
 
 		if (CGRectContainsPoint(prevPageRect, point) == true) // page--
 		{
@@ -666,22 +763,33 @@
 			return;
 		}
 
-		CGRect nextPageRect = viewRect;
-		nextPageRect.size.width = TAP_AREA_SIZE;
-		nextPageRect.origin.x = (viewRect.size.width - TAP_AREA_SIZE);
-
-		if (CGRectContainsPoint(nextPageRect, point) == true) // page++
-		{
-			[self incrementPageNumber]; return;
-		}
-
-		CGRect prevPageRect = viewRect;
-		prevPageRect.size.width = TAP_AREA_SIZE;
-
-		if (CGRectContainsPoint(prevPageRect, point) == true) // page--
-		{
-			[self decrementPageNumber]; return;
-		}
+        CGRect nextPageRect = viewRect;
+        
+        CGRect prevPageRect = viewRect;
+        
+        if (VERTICAL_PAGING) {
+            // Bottom and Top areas
+            nextPageRect.size.height = TAP_AREA_SIZE;
+            nextPageRect.origin.y = (viewRect.size.height - TAP_AREA_SIZE);
+            
+            prevPageRect.size.height = TAP_AREA_SIZE;
+        } else {
+            // Right and Left areas
+            nextPageRect.size.width = TAP_AREA_SIZE;
+            nextPageRect.origin.x = (viewRect.size.width - TAP_AREA_SIZE);
+            
+            prevPageRect.size.width = TAP_AREA_SIZE;
+        }
+        
+        if (CGRectContainsPoint(nextPageRect, point) == true) // page++
+        {
+            [self incrementPageNumber]; return;
+        }
+        
+        if (CGRectContainsPoint(prevPageRect, point) == true) // page--
+        {
+            [self decrementPageNumber]; return;
+        }
 	}
 }
 
